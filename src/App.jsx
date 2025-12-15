@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
     Plus, Trash2, Printer, Save, FileText, Users, Calculator, Settings,
     GripVertical, RefreshCw, Lock, Clipboard, X, ChevronRight, Download,
-    AlertCircle, AlertTriangle, HelpCircle
+    AlertCircle, AlertTriangle, HelpCircle, ArrowRightLeft
 } from 'lucide-react';
 
 // ===== Constants =====
@@ -37,6 +37,11 @@ const App = () => {
 
     // Logic Explanation Modal State
     const [showLogicModal, setShowLogicModal] = useState(false);
+
+    // Swap Modal State
+    const [showSwapModal, setShowSwapModal] = useState(false);
+    const [swapStudent1Id, setSwapStudent1Id] = useState('');
+    const [swapStudent2Id, setSwapStudent2Id] = useState('');
 
     // Configuration
     const [config, setConfig] = useState({
@@ -120,6 +125,47 @@ const App = () => {
         if (window.confirm('수동으로 이동한 내역을 모두 초기화하고 자동 배정으로 되돌리시겠습니까?')) {
             setStudents(students.map(s => ({ ...s, manualClass: null })));
         }
+    };
+
+    // ===== Swap Students =====
+    const handleSwapStudents = () => {
+        if (!swapStudent1Id || !swapStudent2Id || swapStudent1Id === swapStudent2Id) {
+            alert('서로 다른 두 학생을 선택해주세요.');
+            return;
+        }
+
+        const student1 = processedData.allAssigned.find(s => s.id === parseInt(swapStudent1Id));
+        const student2 = processedData.allAssigned.find(s => s.id === parseInt(swapStudent2Id));
+
+        if (!student1 || !student2) {
+            alert('학생을 찾을 수 없습니다.');
+            return;
+        }
+
+        // Get the current classes of both students
+        const class1 = student1.newClass;
+        const class2 = student2.newClass;
+
+        if (class1 === class2) {
+            alert('같은 반의 학생은 교환할 수 없습니다.');
+            return;
+        }
+
+        // Set manual classes to swap
+        setStudents(prev => prev.map(s => {
+            if (s.id === student1.id) {
+                return { ...s, manualClass: class2 };
+            }
+            if (s.id === student2.id) {
+                return { ...s, manualClass: class1 };
+            }
+            return s;
+        }));
+
+        setShowSwapModal(false);
+        setSwapStudent1Id('');
+        setSwapStudent2Id('');
+        alert(`${student1.name} ↔ ${student2.name} 교환 완료!`);
     };
 
     // ===== Bulk Input =====
@@ -562,6 +608,120 @@ const App = () => {
                 </div>
             )}
 
+            {/* Swap Modal */}
+            {showSwapModal && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: 550 }}>
+                        <div className="modal-header">
+                            <h3>
+                                <ArrowRightLeft style={{ width: 20, height: 20, color: 'var(--primary-600)' }} />
+                                학생 교환하기
+                            </h3>
+                            <button onClick={() => setShowSwapModal(false)} className="btn btn-secondary btn-sm">
+                                <X style={{ width: 16, height: 16 }} />
+                            </button>
+                        </div>
+
+                        <div className="modal-body">
+                            <div className="alert alert-info" style={{ marginBottom: '1.5rem' }}>
+                                <AlertCircle style={{ width: 18, height: 18, flexShrink: 0 }} />
+                                <div>
+                                    서로 다른 반의 두 학생을 선택하면 반을 교환합니다.<br />
+                                    <small style={{ opacity: 0.8 }}>※ 교환된 학생은 수동 배정(*)으로 표시됩니다.</small>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                <div className="swap-select-container">
+                                    <label className="swap-select-label">첫 번째 학생</label>
+                                    <select
+                                        className="select"
+                                        value={swapStudent1Id}
+                                        onChange={(e) => setSwapStudent1Id(e.target.value)}
+                                    >
+                                        <option value="">-- 학생 선택 --</option>
+                                        {NEW_CLASS_NAMES.slice(0, config.totalNewClasses).map(className => (
+                                            <optgroup key={className} label={`${className}반`}>
+                                                {processedData.allAssigned
+                                                    .filter(s => s.newClass === className)
+                                                    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                                                    .map(s => (
+                                                        <option key={s.id} value={s.id}>
+                                                            {s.name} ({s.gender === 'M' ? '남' : '여'}, {s.originalClass}반 출신)
+                                                        </option>
+                                                    ))
+                                                }
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="swap-select-container">
+                                    <label className="swap-select-label">두 번째 학생</label>
+                                    <select
+                                        className="select"
+                                        value={swapStudent2Id}
+                                        onChange={(e) => setSwapStudent2Id(e.target.value)}
+                                    >
+                                        <option value="">-- 학생 선택 --</option>
+                                        {NEW_CLASS_NAMES.slice(0, config.totalNewClasses).map(className => (
+                                            <optgroup key={className} label={`${className}반`}>
+                                                {processedData.allAssigned
+                                                    .filter(s => s.newClass === className)
+                                                    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                                                    .map(s => (
+                                                        <option key={s.id} value={s.id}>
+                                                            {s.name} ({s.gender === 'M' ? '남' : '여'}, {s.originalClass}반 출신)
+                                                        </option>
+                                                    ))
+                                                }
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {swapStudent1Id && swapStudent2Id && swapStudent1Id !== swapStudent2Id && (
+                                <div className="swap-preview">
+                                    {(() => {
+                                        const s1 = processedData.allAssigned.find(s => s.id === parseInt(swapStudent1Id));
+                                        const s2 = processedData.allAssigned.find(s => s.id === parseInt(swapStudent2Id));
+                                        if (!s1 || !s2) return null;
+                                        return (
+                                            <>
+                                                <div className="swap-preview-card">
+                                                    <div className="class-name">{s1.newClass}반 → {s2.newClass}반</div>
+                                                    <div className="student-name">{s1.name}</div>
+                                                </div>
+                                                <div className="swap-arrow">⇄</div>
+                                                <div className="swap-preview-card">
+                                                    <div className="class-name">{s2.newClass}반 → {s1.newClass}반</div>
+                                                    <div className="student-name">{s2.name}</div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="modal-footer">
+                            <button onClick={() => setShowSwapModal(false)} className="btn btn-secondary">
+                                취소
+                            </button>
+                            <button
+                                onClick={handleSwapStudents}
+                                className="btn btn-primary"
+                                disabled={!swapStudent1Id || !swapStudent2Id || swapStudent1Id === swapStudent2Id}
+                            >
+                                <ArrowRightLeft style={{ width: 16, height: 16 }} />
+                                교환하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <header className="app-header no-print">
                 <div className="container app-header-content">
@@ -903,107 +1063,93 @@ const App = () => {
                             })}
                         </div>
 
-                        {/* Board Columns */}
-                        <div className="board-container">
+                        {/* Board Grid - 1 row per class, 2 columns (M/F) */}
+                        <div className="board-grid">
                             {NEW_CLASS_NAMES.slice(0, config.totalNewClasses).map((className) => {
                                 const classStats = processedData.stats[className];
-                                const studentsInClass = processedData.allAssigned
-                                    .filter(s => s.newClass === className)
-                                    .sort((a, b) => {
-                                        // Sort: gender (M first), then rank
-                                        if (a.gender !== b.gender) return a.gender === 'M' ? -1 : 1;
-                                        return a.rank - b.rank;
-                                    });
-
-                                const isDragOver = dragOverColumn === className;
+                                const boysInClass = processedData.allAssigned
+                                    .filter(s => s.newClass === className && s.gender === 'M')
+                                    .sort((a, b) => a.rank - b.rank);
+                                const girlsInClass = processedData.allAssigned
+                                    .filter(s => s.newClass === className && s.gender === 'F')
+                                    .sort((a, b) => a.rank - b.rank);
 
                                 return (
-                                    <div
-                                        key={className}
-                                        className={`board-column ${isDragOver ? 'drag-over' : ''}`}
-                                        onDragOver={(e) => handleDragOver(e, className)}
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={(e) => handleDrop(e, className)}
-                                    >
-                                        <div className="board-column-header">
-                                            <div className="board-column-title">
-                                                <h3>{className}반</h3>
-                                                <span style={{
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: 600,
-                                                    padding: '0.25rem 0.625rem',
-                                                    background: 'var(--gray-800)',
-                                                    color: 'white',
-                                                    borderRadius: 'var(--radius-full)'
-                                                }}>
-                                                    {classStats.total}명
-                                                </span>
-                                            </div>
-                                            <div className="board-column-stats">
-                                                <span className="male">남 {classStats.M}</span>
-                                                <span className="female">여 {classStats.F}</span>
-                                                {classStats.transfer > 0 && (
-                                                    <span className="transfer">전출 {classStats.transfer}</span>
-                                                )}
-                                            </div>
+                                    <div key={className} className="board-row">
+                                        <div className="board-row-header">
+                                            <span>{className}</span>
+                                            <span style={{ fontSize: '0.625rem', marginTop: '0.25rem' }}>{classStats.total}명</span>
                                         </div>
 
-                                        <div className="board-column-body">
-                                            {studentsInClass.length > 0 ? (
-                                                studentsInClass.map((student) => {
-                                                    const originColor = getClassColor(student.originalClass);
-                                                    return (
-                                                        <div
-                                                            key={student.id}
-                                                            draggable
-                                                            onDragStart={(e) => handleDragStart(e, student.id)}
-                                                            onDragEnd={handleDragEnd}
-                                                            className={`student-card ${student.isManual ? 'manual' : ''} ${draggedStudentId === student.id ? 'dragging' : ''}`}
-                                                        >
-                                                            <div
-                                                                className={`gender-indicator ${student.gender === 'M' ? 'male' : 'female'}`}
-                                                            />
+                                        {/* Male Column */}
+                                        <div
+                                            className={`board-gender-column male ${dragOverColumn === `${className}-M` ? 'drag-over' : ''}`}
+                                            onDragOver={(e) => handleDragOver(e, `${className}-M`)}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, className)}
+                                        >
+                                            <div className="board-gender-column-header">
+                                                <span>남학생</span>
+                                                <span>{classStats.M}명</span>
+                                            </div>
+                                            {boysInClass.map((student) => {
+                                                const originColor = getClassColor(student.originalClass);
+                                                return (
+                                                    <div
+                                                        key={student.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, student.id)}
+                                                        onDragEnd={handleDragEnd}
+                                                        className={`student-chip ${student.isManual ? 'manual' : ''} ${student.note ? 'has-note' : ''} ${student.isTransfer ? 'is-transfer' : ''} ${draggedStudentId === student.id ? 'dragging' : ''}`}
+                                                        title={`${student.name} (${student.originalClass}반, 석차 ${student.rank || '-'})${student.note ? '\n' + student.note : ''}${student.isTransfer ? '\n전출예정' : ''}`}
+                                                    >
+                                                        <span
+                                                            className="origin-dot"
+                                                            style={{ background: originColor.dark }}
+                                                        />
+                                                        {student.name}
+                                                        {student.isManual && <Lock style={{ width: 10, height: 10 }} className="lock-icon" />}
+                                                    </div>
+                                                );
+                                            })}
+                                            {boysInClass.length === 0 && (
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>-</span>
+                                            )}
+                                        </div>
 
-                                                            <div className="student-card-header">
-                                                                <div>
-                                                                    <div className="student-card-name">
-                                                                        {student.name}
-                                                                        {student.isManual && (
-                                                                            <Lock style={{ width: 12, height: 12, color: 'var(--primary-500)' }} />
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="student-card-meta">
-                                                                        {student.gender === 'M' ? '남' : '여'} · 석차 {student.rank || '-'}
-                                                                    </div>
-                                                                </div>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                    <span
-                                                                        className="origin-badge"
-                                                                        style={{
-                                                                            background: originColor.bg,
-                                                                            color: originColor.dark
-                                                                        }}
-                                                                    >
-                                                                        {student.originalClass}반
-                                                                    </span>
-                                                                    <GripVertical style={{ width: 14, height: 14, color: 'var(--gray-300)' }} />
-                                                                </div>
-                                                            </div>
-
-                                                            {(student.note || student.isTransfer) && (
-                                                                <div className="student-card-note">
-                                                                    {student.isTransfer && <strong style={{ color: '#dc2626' }}>[전출] </strong>}
-                                                                    {student.note}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })
-                                            ) : (
-                                                <div className="empty-column">
-                                                    학생 없음<br />
-                                                    <small>드래그하여 추가</small>
-                                                </div>
+                                        {/* Female Column */}
+                                        <div
+                                            className={`board-gender-column female ${dragOverColumn === `${className}-F` ? 'drag-over' : ''}`}
+                                            onDragOver={(e) => handleDragOver(e, `${className}-F`)}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDrop(e, className)}
+                                        >
+                                            <div className="board-gender-column-header">
+                                                <span>여학생</span>
+                                                <span>{classStats.F}명</span>
+                                            </div>
+                                            {girlsInClass.map((student) => {
+                                                const originColor = getClassColor(student.originalClass);
+                                                return (
+                                                    <div
+                                                        key={student.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, student.id)}
+                                                        onDragEnd={handleDragEnd}
+                                                        className={`student-chip ${student.isManual ? 'manual' : ''} ${student.note ? 'has-note' : ''} ${student.isTransfer ? 'is-transfer' : ''} ${draggedStudentId === student.id ? 'dragging' : ''}`}
+                                                        title={`${student.name} (${student.originalClass}반, 석차 ${student.rank || '-'})${student.note ? '\n' + student.note : ''}${student.isTransfer ? '\n전출예정' : ''}`}
+                                                    >
+                                                        <span
+                                                            className="origin-dot"
+                                                            style={{ background: originColor.dark }}
+                                                        />
+                                                        {student.name}
+                                                        {student.isManual && <Lock style={{ width: 10, height: 10 }} className="lock-icon" />}
+                                                    </div>
+                                                );
+                                            })}
+                                            {girlsInClass.length === 0 && (
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>-</span>
                                             )}
                                         </div>
                                     </div>
@@ -1334,6 +1480,15 @@ const App = () => {
                             })}
                         </div>
                     </div>
+
+                    {/* Floating Swap Button */}
+                    <button
+                        onClick={() => setShowSwapModal(true)}
+                        className="floating-swap-btn no-print"
+                    >
+                        <ArrowRightLeft style={{ width: 18, height: 18 }} />
+                        학생 교환
+                    </button>
                 </div>
             </main>
 
