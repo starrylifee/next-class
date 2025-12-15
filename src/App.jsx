@@ -1336,6 +1336,21 @@ const App = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Footer */}
+            <footer className="no-print" style={{
+                textAlign: 'center',
+                padding: '2rem 1rem',
+                marginTop: '2rem',
+                borderTop: '1px solid var(--gray-200)',
+                color: 'var(--gray-500)',
+                fontSize: '0.875rem'
+            }}>
+                <p>© 2024-{new Date().getFullYear()} 서울신답초등학교 정용석</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.7 }}>
+                    분반 작업 도우미 v1.0
+                </p>
+            </footer>
         </div>
     );
 };
